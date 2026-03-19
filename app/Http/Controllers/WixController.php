@@ -353,9 +353,49 @@ class WixController extends Controller
     }
 
     /**
+     * Extract instanceId from Wix instance JWT (iframe query param).
+     */
+    protected function extractInstanceIdFromInstance(string $instance): ?string
+    {
+        $parts = explode('.', $instance);
+        if (count($parts) < 2) {
+            return null;
+        }
+        $payload = json_decode(base64_decode(strtr($parts[1], '-_', '+/')), true);
+
+        return $payload['instanceId'] ?? null;
+    }
+
+    /**
+     * Create OAuth access token for app instance (required for Wix REST APIs).
+     */
+    protected function createAppAccessToken(string $instanceId): ?string
+    {
+        $response = Http::asJson()->post('https://www.wixapis.com/oauth2/token', [
+            'grant_type'    => 'client_credentials',
+            'client_id'     => config('services.wix.app_id'),
+            'client_secret' => config('services.wix.app_secret'),
+            'instance_id'   => $instanceId,
+        ]);
+
+        if (!$response->successful()) {
+            Log::warning('Wix OAuth token creation failed', [
+                'status' => $response->status(),
+                'body'   => $response->body(),
+            ]);
+
+            return null;
+        }
+
+        $data = $response->json();
+
+        return $data['access_token'] ?? null;
+    }
+
+    /**
      * Fetch site URL from Wix instance API.
      * Instance is passed as query param when dashboard is opened from Wix.
-     * GET https://www.wixapis.com/apps/v1/instance with Authorization: <instance>
+     * First checks wix_tokens.info for cached site URL; otherwise fetches from Wix API and caches.
      */
     public function getSiteUrl(Request $request): JsonResponse
     {
@@ -365,7 +405,29 @@ class WixController extends Controller
             return response()->json(['error' => 'Missing instance query param'], 400);
         }
 
-        $response = Http::withHeaders(['Authorization' => $instance])
+        $instanceId = $this->extractInstanceIdFromInstance($instance);
+        if (!$instanceId) {
+            return response()->json(['error' => 'Invalid instance format'], 400);
+        }
+
+        // Try cached URL from wix_tokens (info->site->url)
+        $token = WixToken::where('instance', $instanceId)->first();
+        if ($token && $token->info) {
+            $siteUrl = $token->info['site']['url'] ?? null;
+            if ($siteUrl && is_string($siteUrl)) {
+                return response()->json(['siteUrl' => $siteUrl]);
+            }
+        }
+
+        $accessToken = $this->createAppAccessToken($instanceId);
+        if (!$accessToken) {
+            return response()->json(
+                ['error' => 'Instance token expired or invalid. Please open the dashboard again from Wix to get a fresh link.'],
+                401
+            );
+        }
+
+        $response = Http::withHeaders(['Authorization' => 'Bearer ' . $accessToken])
             ->get('https://www.wixapis.com/apps/v1/instance');
 
         if (!$response->successful()) {
@@ -392,6 +454,12 @@ class WixController extends Controller
         if (!$siteUrl || !is_string($siteUrl)) {
             return response()->json(['error' => 'Site URL not available (site may be unpublished)'], 404);
         }
+
+        // Cache in wix_tokens for future requests
+        WixToken::updateOrCreate(
+            ['instance' => $instanceId, 'app' => 'site_animation'],
+            ['info' => $data]
+        );
 
         return response()->json(['siteUrl' => $siteUrl]);
     }
