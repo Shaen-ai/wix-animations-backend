@@ -369,13 +369,20 @@ class WixController extends Controller
             ->get('https://www.wixapis.com/apps/v1/instance');
 
         if (!$response->successful()) {
+            $status = $response->status();
+            $body = $response->body();
             Log::warning('Wix instance API failed', [
-                'status' => $response->status(),
-                'body' => $response->body(),
+                'status' => $status,
+                'body' => $body,
             ]);
+            $message = match ($status) {
+                401 => 'Instance token expired or invalid. Please open the dashboard again from Wix to get a fresh link.',
+                403 => 'Access denied by Wix. Please ensure the app has the required permissions.',
+                default => 'Failed to fetch site info from Wix',
+            };
             return response()->json(
-                ['error' => 'Failed to fetch site info from Wix'],
-                $response->status()
+                ['error' => $message],
+                $status
             );
         }
 
