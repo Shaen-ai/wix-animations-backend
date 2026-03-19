@@ -48,3 +48,6 @@ Route::patch('/settings/banners', [ConfigController::class, 'updateBanners']);
 
 // Banner definitions (available banners to choose from)
 Route::get('/banners', [BannerController::class, 'index']);
+
+// Wix instance → site URL (for dashboard iframe preview)
+Route::get('/site-url', [WixController::class, 'getSiteUrl']);

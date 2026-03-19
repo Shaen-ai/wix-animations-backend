@@ -7,6 +7,7 @@ use App\Models\WixWebhook;
 use Exception;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -349,5 +350,42 @@ class WixController extends Controller
         }
 
         return null;
+    }
+
+    /**
+     * Fetch site URL from Wix instance API.
+     * Instance is passed as query param when dashboard is opened from Wix.
+     * GET https://www.wixapis.com/apps/v1/instance with Authorization: <instance>
+     */
+    public function getSiteUrl(Request $request): JsonResponse
+    {
+        $instance = $request->query('instance');
+
+        if (!$instance) {
+            return response()->json(['error' => 'Missing instance query param'], 400);
+        }
+
+        $response = Http::withHeaders(['Authorization' => $instance])
+            ->get('https://www.wixapis.com/apps/v1/instance');
+
+        if (!$response->successful()) {
+            Log::warning('Wix instance API failed', [
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+            return response()->json(
+                ['error' => 'Failed to fetch site info from Wix'],
+                $response->status()
+            );
+        }
+
+        $data = $response->json();
+        $siteUrl = $data['site']['url'] ?? null;
+
+        if (!$siteUrl || !is_string($siteUrl)) {
+            return response()->json(['error' => 'Site URL not available (site may be unpublished)'], 404);
+        }
+
+        return response()->json(['siteUrl' => $siteUrl]);
     }
 }
