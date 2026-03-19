@@ -33,19 +33,19 @@ class ConfigController extends Controller
         if (!$config) {
             return response()->json([
                 'enabled' => true,
-                'type' => 'floating-hearts',
+                'type' => 'flying-cupid',
                 'direction' => 'bottom-to-top',
                 'scope' => 'all',
-                'count' => 14,
+                'count' => 3,
             ]);
         }
         $animation = $config->animation ?? [];
         return response()->json(array_merge([
             'enabled' => true,
-            'type' => 'floating-hearts',
+            'type' => 'flying-cupid',
             'direction' => 'bottom-to-top',
             'scope' => 'all',
-            'count' => 14,
+            'count' => 3,
         ], $animation));
     }
 
@@ -114,7 +114,7 @@ class ConfigController extends Controller
         $existing = Config::first();
         if (!$existing) {
             $defaults = [
-                'animation' => ['enabled' => true, 'type' => 'floating-hearts', 'direction' => 'bottom-to-top', 'scope' => 'all', 'count' => 14],
+                'animation' => ['enabled' => true, 'type' => 'flying-cupid', 'direction' => 'bottom-to-top', 'scope' => 'all', 'count' => 3],
                 'decorations' => ['enabled' => true, 'scope' => 'all'],
                 'banner_count' => 2,
                 'banners' => [],

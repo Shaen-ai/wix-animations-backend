@@ -26,10 +26,10 @@ class Config extends Model
         $data = [
             'animation' => $this->animation ?? [
                 'enabled' => true,
-                'type' => 'floating-hearts',
+                'type' => 'flying-cupid',
                 'direction' => 'bottom-to-top',
                 'scope' => 'all',
-                'count' => 14,
+                'count' => 3,
             ],
             'decorations' => $this->decorations ?? [
                 'enabled' => true,
