@@ -46,12 +46,7 @@ Laravel backend for the Site Animation dashboard. Same API as the Node.js/MongoD
 | GET | `/` | Health check |
 | GET | `/config` | Get widget config |
 | POST | `/config` | Save widget config |
-| GET | `/banners` | Get banner definitions |
-
-## Assets
-
-Banner images are served from `../assets/animations/`. A symlink is created automatically on boot from `public/assets` to the parent `assets` folder. Ensure the `assets/animations` directory exists at the project root.
 
 ## Dashboard
 
-The dashboard expects the API at `http://localhost:4000`. Set `VITE_SETTINGS_URL` and `VITE_BANNERS_URL` in the dashboard's `.env` if using a different base URL.
+The dashboard expects the API at `http://localhost:4000`. Set `VITE_SETTINGS_URL` and `VITE_ASSETS_BASE_URL` in the dashboard's `.env` if using a different base URL. Banner and animation assets are loaded from the frontend manifest (no API call).

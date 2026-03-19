@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\BannerController;
 use App\Http\Controllers\ConfigController;
 use App\Http\Controllers\WixController;
 use Illuminate\Support\Facades\Route;
@@ -45,9 +44,6 @@ Route::patch('/config/banners', [ConfigController::class, 'updateBanners']);
 Route::get('/settings/banners', [ConfigController::class, 'showBanners']);
 Route::put('/settings/banners', [ConfigController::class, 'updateBanners']);
 Route::patch('/settings/banners', [ConfigController::class, 'updateBanners']);
-
-// Banner definitions (available banners to choose from)
-Route::get('/banners', [BannerController::class, 'index']);
 
 // Wix instance → site URL (for dashboard iframe preview)
 Route::get('/site-url', [WixController::class, 'getSiteUrl']);

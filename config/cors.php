@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'paths' => ['api/*', 'config', 'config/*', 'banners', 'settings', 'settings/*', '/'],
+    'paths' => ['api/*', 'config', 'config/*', 'settings', 'settings/*', '/'],
     'allowed_methods' => ['*'],
     'allowed_origins' => ['*'],
     'allowed_origins_patterns' => [],
