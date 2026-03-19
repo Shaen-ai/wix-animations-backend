@@ -272,16 +272,68 @@ class WixController extends Controller
     protected function getSiteNoticeBannerAccessToken(string $code): ?array
     {
         $url = 'https://www.wixapis.com/oauth/access';
+
+        // Use credentials that match the app which issued the code
+        $codeAppId = $this->extractAppIdFromOAuthCode($code);
+        $wixAppId = config('services.wix.app_id');
+        $wixAppSecret = config('services.wix.app_secret');
+        $bannerAppId = config('services.site_notice_banner.app_id');
+        $bannerAppSecret = config('services.site_notice_banner.app_secret');
+
+        if ($codeAppId === $wixAppId && !empty($wixAppSecret)) {
+            $appId = $wixAppId;
+            $appSecret = $wixAppSecret;
+        } elseif ($codeAppId === $bannerAppId && !empty($bannerAppSecret)) {
+            $appId = $bannerAppId;
+            $appSecret = $bannerAppSecret;
+        } elseif (!empty($bannerAppSecret)) {
+            $appId = $bannerAppId;
+            $appSecret = $bannerAppSecret;
+        } else {
+            $appId = $wixAppId;
+            $appSecret = $wixAppSecret;
+        }
+
         $data = [
             'grant_type' => 'authorization_code',
-            'client_id' => config('services.site_notice_banner.app_id'),
-            'client_secret' => config('services.site_notice_banner.app_secret'),
+            'client_id' => $appId,
+            'client_secret' => $appSecret,
             'code' => $code,
         ];
 
         $response = Http::post($url, $data);
 
+        if (!$response->successful()) {
+            Log::warning('Wix OAuth token exchange failed', [
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+        }
+
         return $response->json();
+    }
+
+    /**
+     * Extract appId from Wix OAuth code JWT payload.
+     */
+    protected function extractAppIdFromOAuthCode(string $code): ?string
+    {
+        $jwt = str_starts_with($code, 'OAUTH2.') ? substr($code, 7) : $code;
+        $parts = explode('.', $jwt);
+        if (count($parts) < 2) {
+            return null;
+        }
+        $payload = json_decode(base64_decode(strtr($parts[1], '-_', '+/')), true);
+        if (!$payload) {
+            return null;
+        }
+        $appId = $payload['appId'] ?? null;
+        if (!$appId && isset($payload['data'])) {
+            $data = is_string($payload['data']) ? json_decode($payload['data'], true) : $payload['data'];
+            $appId = $data['appId'] ?? null;
+        }
+
+        return $appId;
     }
 
     protected function getAppsData(string $token): ?array
