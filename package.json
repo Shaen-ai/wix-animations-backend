@@ -1,0 +1,9 @@
+{
+  "name": "site-animation-backend",
+  "version": "1.0.0",
+  "scripts": {
+    "serve": "php artisan serve --port=4000",
+    "migrate": "php artisan migrate --force",
+    "seed": "php artisan db:seed --force"
+  }
+}
