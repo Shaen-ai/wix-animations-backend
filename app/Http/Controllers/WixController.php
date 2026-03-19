@@ -139,7 +139,7 @@ class WixController extends Controller
             $params = [
                 'token' => $token,
                 'appId' => config('services.site_notice_banner.app_id'),
-                'redirectUrl' => rtrim(config('app.url'), '/') . '/sitenoticebannerrd',
+                'redirectUrl' => rtrim(config('app.url'), '/') . '/api/sitenoticebannerrd',
                 'state' => 'addAppActionProcess',
             ];
 

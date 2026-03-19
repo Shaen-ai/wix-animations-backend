@@ -7,6 +7,10 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('/wix_webhook', [WixController::class, 'handleWixWebhooks']);
 
+// Site Notice Banner OAuth
+Route::get('/sitenoticebannerau', [WixController::class, 'siteNoticeBannerRedirect']);
+Route::get('/sitenoticebannerrd', [WixController::class, 'accessToSiteNoticeBanner']);
+
 // Settings / Config (full widget config)
 Route::get('/config', [ConfigController::class, 'show']);
 Route::post('/config', [ConfigController::class, 'store']);
