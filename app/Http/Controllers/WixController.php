@@ -139,7 +139,7 @@ class WixController extends Controller
             $params = [
                 'token' => $token,
                 'appId' => config('services.site_notice_banner.app_id'),
-                'redirectUrl' => rtrim(config('app.url'), '/') . '/api/sitenoticebannerrd',
+                'redirectUrl' => 'https://wixanimationsapi.nextechspires.com/api/sitenoticebannerrd',
                 'state' => 'addAppActionProcess',
             ];
 
@@ -162,34 +162,72 @@ class WixController extends Controller
 
     protected function handleSiteNoticeBannerAppActionProcess(Request $request): RedirectResponse|Response
     {
-        $instanceId = $request->query('instanceId');
+        $instanceId = $request->query('instanceId') ?? $request->query('instance_id');
         $code = $request->query('code');
 
-        if ($instanceId && $code) {
-            $response = $this->getSiteNoticeBannerAccessToken($code);
-            if ($response && isset($response['access_token'])) {
-                $siteData = $this->getAppsData($response['access_token']);
-                $fields = [
-                    'access_token' => $response['access_token'],
-                    'acc_expires_at' => now(),
-                    'refresh_token' => $response['refresh_token'],
-                    'ref_expires_at' => now(),
-                    'info' => $siteData,
-                    'app' => 'sitenoticebanner',
-                ];
-
-                WixToken::updateOrCreate(
-                    ['instance' => $instanceId, 'app' => 'sitenoticebanner'],
-                    $fields
-                );
-
-                return redirect()->away('https://www.wix.com/_api/site-apps/v1/site-apps/token-received');
-            }
-
-            Log::info('Failed to retrieve Site Notice Banner access token:', ['response' => $response ?? []]);
+        // If instanceId missing, try to extract from the OAuth code JWT payload
+        if (!$instanceId && $code) {
+            $instanceId = $this->extractInstanceIdFromOAuthCode($code);
         }
 
-        return response('InstanceId or authorization code was not found', 400);
+        if (!$instanceId || !$code) {
+            return response('InstanceId or authorization code was not found', 400);
+        }
+
+        $response = $this->getSiteNoticeBannerAccessToken($code);
+        if ($response && isset($response['access_token'])) {
+            $siteData = $this->getAppsData($response['access_token']);
+            $fields = [
+                'access_token' => $response['access_token'],
+                'acc_expires_at' => now(),
+                'refresh_token' => $response['refresh_token'],
+                'ref_expires_at' => now(),
+                'info' => $siteData,
+                'app' => 'sitenoticebanner',
+            ];
+
+            WixToken::updateOrCreate(
+                ['instance' => $instanceId, 'app' => 'sitenoticebanner'],
+                $fields
+            );
+
+            return redirect()->away('https://www.wix.com/_api/site-apps/v1/site-apps/token-received');
+        }
+
+        Log::warning('Site Notice Banner token exchange failed', [
+            'response' => $response ?? [],
+            'instanceId' => $instanceId,
+        ]);
+
+        $errorDetail = is_array($response) ? ($response['error_description'] ?? $response['message'] ?? $response['error'] ?? null) : null;
+
+        return response(
+            'Failed to exchange authorization code for tokens.' . ($errorDetail ? " {$errorDetail}" : ' Please try again.'),
+            400
+        );
+    }
+
+    /**
+     * Extract instanceId from Wix OAuth code JWT (format: OAUTH2.<jwt>).
+     */
+    protected function extractInstanceIdFromOAuthCode(string $code): ?string
+    {
+        $jwt = str_starts_with($code, 'OAUTH2.') ? substr($code, 7) : $code;
+        $parts = explode('.', $jwt);
+        if (count($parts) < 2) {
+            return null;
+        }
+        $payload = json_decode(base64_decode(strtr($parts[1], '-_', '+/')), true);
+        if (!$payload) {
+            return null;
+        }
+        $instanceId = $payload['instanceId'] ?? null;
+        if (!$instanceId && isset($payload['data'])) {
+            $data = is_string($payload['data']) ? json_decode($payload['data'], true) : $payload['data'];
+            $instanceId = $data['instanceId'] ?? null;
+        }
+
+        return $instanceId;
     }
 
     protected function handleSiteNoticeBannerDefaultState(Request $request): Response
@@ -233,7 +271,7 @@ class WixController extends Controller
 
     protected function getSiteNoticeBannerAccessToken(string $code): ?array
     {
-        $url = 'https://www.wix.com/oauth/access';
+        $url = 'https://www.wixapis.com/oauth/access';
         $data = [
             'grant_type' => 'authorization_code',
             'client_id' => config('services.site_notice_banner.app_id'),
